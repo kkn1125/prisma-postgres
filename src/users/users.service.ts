@@ -2,12 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { DatabaseService } from 'src/database/database.service';
+import crypto from 'crypto';
+import { RedisService } from '@liaoliaots/nestjs-redis';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: DatabaseService) {}
+  constructor(
+    private redis: RedisService,
+    private prisma: DatabaseService,
+  ) {}
 
   create(createUserDto: CreateUserDto) {
+    const encodedPassword = this.encodePassword(
+      createUserDto.email,
+      createUserDto.password,
+    );
+    createUserDto.password = encodedPassword;
     return this.prisma.user.create({ data: createUserDto });
   }
 
@@ -25,5 +35,21 @@ export class UsersService {
 
   remove(id: number) {
     return this.prisma.user.delete({ where: { id } });
+  }
+
+  login(email: string, password: string) {
+    const encodedPassword = this.encodePassword(email, password);
+    this.authorization(email, encodedPassword);
+  }
+  private authorization(email: string, encodedPassword: string) {
+    // this.redis.getOrNil(email, )
+  }
+
+  private encodePassword(email: string, password: string) {
+    const payload = email + password;
+    const hmac = crypto.createHash('sha256');
+    hmac.update(payload);
+    const encoded = hmac.digest('hex');
+    return encoded;
   }
 }
